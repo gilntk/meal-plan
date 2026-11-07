@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Meal Plan</title>
+  <meta name="description" content="A lightweight dinner planner and shopping list.">
+  <meta name="theme-color" content="#f6f1e7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Meal Plan">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="app-header">
+    <h1 id="screen-title">Calendar</h1>
+    <!-- Each tab's actions live on the right side of the header -->
+    <div class="header-actions" data-tab="0">
+      <button type="button" id="share-plan" class="icon-button" aria-label="Share plan"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg></button>
+      <button type="button" id="open-planner" class="text-button icon-text"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Plan</span></button>
+    </div>
+    <div class="header-actions" data-tab="1" hidden>
+      <button type="button" id="add-food-open" class="text-button icon-text" aria-label="Add food"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button>
+    </div>
+    <div class="header-actions" data-tab="2" hidden>
+      <button type="button" id="shopping-clear" class="text-button danger-text" hidden>Clear</button>
+      <button type="button" id="shopping-add-toggle" class="text-button icon-text" aria-label="Add item" aria-expanded="false" aria-controls="shopping-add-form"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Add</span></button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <!-- Calendar tab: read-only view -->
+    <section id="panel-calendar" class="panel" role="tabpanel" aria-labelledby="tab-calendar">
+      <ol id="calendar-days" class="day-list" aria-label="Dinners by day"></ol>
+      <button type="button" id="calendar-more" class="text-button more-day">Show another day</button>
+      <button type="button" id="calendar-later" class="text-button more-day" hidden>Plan a later date</button>
+      <p id="calendar-later-note" class="hint later-note" hidden></p>
+    </section>
+
+    <!-- Food tab: the catalog of meal components -->
+    <section id="panel-food" class="panel" role="tabpanel" aria-labelledby="tab-food" hidden>
+      <form id="add-food-form" class="add-row" role="search" autocomplete="off">
+        <label for="new-food-name" class="visually-hidden">Search foods</label>
+        <input id="new-food-name" type="search" placeholder="Search foods" maxlength="80" enterkeyhint="search">
+      </form>
+      <div id="food-tags" class="tag-row" role="group" aria-label="Show foods tagged" hidden></div>
+      <ul id="food-list" class="food-list" aria-label="Foods"></ul>
+      <p id="food-nomatch" class="hint" hidden></p>
+      <p id="food-empty" class="empty-state" hidden>No foods yet. Tap Add to add the dishes you make, like entrees, vegetables, sides, and kid favorites. They'll show up here for planning.</p>
+
+      <div class="backup">
+        <h2>Backup</h2>
+        <p>Your data lives only on this phone. Save a copy to Files or iCloud Drive now and then.</p>
+        <div class="action-row compact">
+          <button type="button" id="export-data" class="secondary-button">Export backup</button>
+          <button type="button" id="import-data" class="secondary-button">Import backup</button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+    </section>
+
+    <!-- Shopping tab: missing items from today onward -->
+    <section id="panel-shopping" class="panel" role="tabpanel" aria-labelledby="tab-shopping" hidden>
+      <form id="shopping-add-form" class="add-row" autocomplete="off" hidden>
+        <label for="shopping-new-item" class="visually-hidden">New shopping item</label>
+        <input id="shopping-new-item" type="text" placeholder="Add an item, like paper towels" maxlength="200" enterkeyhint="done">
+        <button type="submit" class="primary-button small">Add</button>
+      </form>
+      <ul id="shopping-list" class="shopping-list" aria-label="Items to buy"></ul>
+      <p id="shopping-empty" class="empty-state" hidden>Nothing to pick up. Tap Add, or note what you're missing when you plan a day.</p>
+    </section>
+  </main>
+
+  <nav class="tab-bar" aria-label="Sections">
+    <div role="tablist" aria-label="Sections">
+      <button type="button" role="tab" id="tab-calendar" aria-controls="panel-calendar" aria-selected="true">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+        <span>Calendar</span>
+      </button>
+      <button type="button" role="tab" id="tab-food" aria-controls="panel-food" aria-selected="false" tabindex="-1">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="13" r="7.5"/><circle cx="12" cy="13" r="4"/><path d="M12 2.5v3"/></svg>
+        <span>Food</span>
+      </button>
+      <button type="button" role="tab" id="tab-shopping" aria-controls="panel-shopping" aria-selected="false" tabindex="-1">
+        <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 8h14l-1.3 11.2a1.5 1.5 0 0 1-1.5 1.3H7.8a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M9 10V6.5a3 3 0 0 1 6 0V10"/></svg>
+        <span>Shopping</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Plan meals: where every change to the plan happens -->
+  <dialog id="planner" class="sheet" aria-labelledby="planner-title">
+    <div class="sheet-header">
+      <h2 id="planner-title">Plan meals</h2>
+      <button type="button" class="text-button" data-close>Done</button>
+    </div>
+    <div class="sheet-body">
+      <ol id="planner-days" class="planner-days" aria-label="Days to plan"></ol>
+      <button type="button" id="planner-more" class="text-button more-day">Add next day</button>
+      <button type="button" id="planner-later" class="text-button more-day" hidden>Plan a later date</button>
+      <p id="planner-later-note" class="hint later-note" hidden></p>
+    </div>
+  </dialog>
+
+  <!-- Pick foods for one day -->
+  <dialog id="picker" class="sheet" aria-labelledby="picker-title">
+    <form id="picker-form" method="dialog">
+      <div class="sheet-header">
+        <button type="button" class="text-button" data-close>Cancel</button>
+        <h2 id="picker-title">Day</h2>
+        <button type="button" id="note-toggle" class="text-button icon-text" aria-expanded="false" aria-controls="note-area" aria-label="Shopping note">
+          <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 8h14l-1.3 11.2a1.5 1.5 0 0 1-1.5 1.3H7.8a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M9 10V6.5a3 3 0 0 1 6 0V10"/><path d="M12 12.5v5M9.5 15h5"/></svg>
+          <span>Shopping</span>
+        </button>
+      </div>
+      <div class="sheet-body">
+        <div id="note-area" hidden>
+          <label for="picker-note">Missing from the pantry</label>
+          <textarea id="picker-note" rows="2" maxlength="400" placeholder="eggs, butter"></textarea>
+          <p class="hint">Separate items with commas. They go on your Shopping list.</p>
+        </div>
+        <div class="add-row">
+          <label for="picker-new-food" class="visually-hidden">Search or add a food</label>
+          <input id="picker-new-food" type="search" placeholder="Search or add a food" maxlength="80" autocomplete="off" enterkeyhint="done">
+          <button type="button" id="picker-add-food" class="secondary-button small">Add</button>
+        </div>
+        <div id="picker-tags" class="tag-row" role="group" aria-label="Show foods tagged" hidden></div>
+        <fieldset class="food-picks">
+          <legend>Foods for this dinner</legend>
+          <div id="picker-foods"></div>
+          <p id="picker-empty" class="empty-state" hidden>Your food list is empty. Type a food above and tap Add.</p>
+          <p id="picker-nomatch" class="hint" hidden></p>
+        </fieldset>
+
+      </div>
+      <div class="sheet-footer">
+        <button type="submit" id="picker-save" class="primary-button wide">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Move a day's dinner to another day -->
+  <dialog id="mover" class="sheet small-sheet" aria-labelledby="mover-title">
+    <div class="sheet-header">
+      <button type="button" class="text-button" data-close>Cancel</button>
+      <h2 id="mover-title">Move to</h2>
+      <span class="header-spacer" aria-hidden="true"></span>
+    </div>
+    <div class="sheet-body">
+      <p id="mover-desc" class="hint"></p>
+      <ul id="mover-days" class="choice-list"></ul>
+    </div>
+  </dialog>
+
+  <!-- Confirmations (clear a day, delete a food) -->
+  <dialog id="confirm" class="alert" aria-labelledby="confirm-title" aria-describedby="confirm-msg">
+    <form method="dialog">
+      <h2 id="confirm-title">Are you sure?</h2>
+      <p id="confirm-msg"></p>
+      <div class="alert-buttons">
+        <button value="cancel" class="secondary-button">Cancel</button>
+        <button value="ok" id="confirm-ok" class="danger-button">Delete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Rename or delete a food -->
+  <dialog id="food-editor" class="alert" aria-labelledby="food-editor-title">
+    <form id="food-editor-form" method="dialog">
+      <h2 id="food-editor-title">Edit food</h2>
+      <label for="food-editor-name">Name</label>
+      <input id="food-editor-name" type="text" maxlength="80" autocomplete="off" required>
+      <fieldset class="tag-edit">
+        <legend>Tags</legend>
+        <div id="food-editor-tags" class="tag-wrap"></div>
+        <p id="food-editor-tags-empty" class="hint">No tags on this food yet.</p>
+        <div class="add-row">
+          <label for="food-editor-new-tag" class="visually-hidden">Add a tag</label>
+          <input id="food-editor-new-tag" type="text" placeholder="Add a tag, like Entree" maxlength="24" autocomplete="off" enterkeyhint="done" aria-describedby="food-editor-suggest-label">
+          <button type="button" id="food-editor-add-tag" class="secondary-button small">Add</button>
+        </div>
+        <p id="food-editor-suggest-label" class="visually-hidden">Matching tags appear below as you type.</p>
+        <div id="food-editor-suggest" class="tag-wrap suggest" role="group" aria-label="Matching tags" hidden></div>
+      </fieldset>
+      <div class="alert-buttons three">
+        <button type="button" id="food-editor-delete" class="danger-button">Delete</button>
+        <button value="cancel" formnovalidate class="secondary-button">Cancel</button>
+        <button value="save" id="food-editor-save" class="primary-button">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Pick a date past the week shown -->
+  <dialog id="later" class="alert" aria-labelledby="later-title">
+    <form method="dialog">
+      <h2 id="later-title">Plan a later date</h2>
+      <label for="later-date">Date</label>
+      <input id="later-date" type="date" required>
+      <div class="alert-buttons">
+        <button value="cancel" formnovalidate class="secondary-button">Cancel</button>
+        <button value="ok" class="primary-button">Choose foods</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
