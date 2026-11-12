@@ -39,7 +39,7 @@ Plain HTML, CSS, and JavaScript. No frameworks, no build step, no server, no acc
 Stored in IndexedDB (database `meal-plan`) on the device:
 
 - `foods`: `{ id, name, tags: [] }`
-- `plans`: `{ date: "YYYY-MM-DD", foodIds: [], note }`, one record per planned day
+- `plans`: `{ date: "YYYY-MM-DD", foodIds: [], oneOffs: [], note }`, one record per planned day. `oneOffs` holds names of foods added to that day only, not saved to `foods`
 - `meta`: `{ key: "shoppingExtras", items: [] }` and `{ key: "tagCounts", counts: {} }`
 
 The shopping list isn't stored on its own; it's computed from the `note` on today's and later plans, plus `shoppingExtras`.
