@@ -411,3 +411,13 @@ input[type="search"] { -webkit-appearance: none; appearance: none; }
 #picker-nomatch, #food-nomatch { margin: .5rem .25rem; }
 .later-note { text-align: center; }
 input[type="date"] { display: block; }
+
+/* "Save to Food list" option under the picker's add box */
+.inline-check {
+  display: flex; align-items: center; gap: .6rem;
+  min-height: var(--tap);
+  margin: -.5rem 0 .75rem .25rem;
+  color: var(--muted); font-size: .95rem;
+  cursor: pointer;
+}
+.inline-check input { width: 1.3rem; height: 1.3rem; accent-color: var(--accent); flex: none; margin: 0; }

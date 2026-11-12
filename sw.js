@@ -1,7 +1,7 @@
 // Service worker: keeps a copy of the app on the phone so it opens instantly and offline.
 // To ship an update, change VERSION. The phone notices the new sw.js, downloads the
 // files once, and uses them from the next launch on.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const CACHE = `meal-plan-${VERSION}`;
 const FILES = [
   './',

@@ -1,7 +1,8 @@
 // Meal Plan: plain JavaScript, no libraries.
 // Data model (two tables, stored in IndexedDB on the phone):
 //   foods: { id, name }
-//   plans: { date: "YYYY-MM-DD", foodIds: [id, ...], note: "eggs, butter" }
+//   plans: { date: "YYYY-MM-DD", foodIds: [id, ...], oneOffs: ["name", ...], note: "eggs, butter" }
+//   (oneOffs are foods for that day only, never added to the Food list)
 
 const PAST_DAYS = 2;     // compact rows shown above today
 const AHEAD_DAYS = 3;    // full days shown after today (today + 3 = 4 days)
@@ -73,12 +74,18 @@ const sortedFoods = () =>
   [...foods.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 
 function getPlan(date) {
-  return plans.get(date) || { date, foodIds: [], note: '' };
+  const p = plans.get(date) || { date, foodIds: [], note: '' };
+  if (!p.oneOffs) p.oneOffs = []; // plans saved before one-offs existed
+  return p;
 }
-const isEmpty = (p) => !p.foodIds.length && !p.note.trim();
+const isEmpty = (p) => !p.foodIds.length && !(p.oneOffs || []).length && !p.note.trim();
+const sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
+// Merge name lists, dropping case-insensitive duplicates
+const mergeNames = (...lists) => lists.flat().filter((n, i, all) => all.findIndex((x) => sameName(x, n)) === i);
 
 async function savePlan(plan) {
   plan.foodIds = plan.foodIds.filter((id) => foods.has(id));
+  plan.oneOffs = mergeNames(plan.oneOffs || []);
   plan.note = plan.note.trim();
   if (isEmpty(plan)) {
     plans.delete(plan.date);
@@ -150,7 +157,7 @@ function range(from, to) {
 }
 
 const matchesText = (f, text) => !text || f.name.toLowerCase().includes(text.trim().toLowerCase());
-const foodNames = (plan) => plan.foodIds.map((id) => foods.get(id)?.name).filter(Boolean);
+const foodNames = (plan) => [...plan.foodIds.map((id) => foods.get(id)?.name).filter(Boolean), ...(plan.oneOffs || [])];
 
 // ---------- Tags ----------
 
@@ -352,7 +359,7 @@ function openPlanner() {
 async function clearDay(key) {
   const ok = await confirmDialog(`Clear ${dayName(key)}?`, 'This removes its foods and any missing items from your shopping list.', 'Clear');
   if (!ok) return;
-  await savePlan({ date: key, foodIds: [], note: '' });
+  await savePlan({ date: key, foodIds: [], oneOffs: [], note: '' });
   renderAll();
   toast(`${dayName(key)} cleared`);
 }
@@ -363,6 +370,7 @@ let pickerDate = null;
 let pickerChecked = new Set(); // foods chosen for the day, kept even when a tag filter hides them
 let pickerFilter = null;
 let pickerTagOrder = null; // set when the picker opens, so chips don't jump around mid-use
+let pickerOneOffs = [];       // this day's one-off foods: [{ name, checked }]
 
 function renderPickerFoods() {
   const box = $('#picker-foods');
@@ -376,7 +384,16 @@ function renderPickerFoods() {
   }, pickerTagOrder);
   const text = $('#picker-new-food').value;
   const shown = all.filter((x) => hasTag(x, pickerFilter) && matchesText(x, text));
-  noMatchMessage($('#picker-nomatch'), all.length > 0 && shown.length === 0, text);
+  noMatchMessage($('#picker-nomatch'), all.length > 0 && shown.length === 0 && pickerOneOffs.length === 0, text);
+  $('#picker-empty').hidden = all.length > 0 || pickerOneOffs.length > 0;
+  // One-off foods for this day come first, always visible, marked "this day only"
+  pickerOneOffs.forEach((o, i) => {
+    const id = `pick-oneoff-${i}`;
+    const cb = el('input', Object.assign({ type: 'checkbox', id }, o.checked ? { checked: '' } : {}));
+    cb.addEventListener('change', () => { o.checked = cb.checked; });
+    box.append(el('label', { class: 'pick', for: id }, cb,
+      el('span', {}, o.name, el('span', { class: 'food-tag-list', text: 'this day only' }))));
+  });
   for (const f of shown) {
     const id = `pick-${f.id}`;
     const box_ = el('input', Object.assign({ type: 'checkbox', id, value: f.id }, pickerChecked.has(f.id) ? { checked: '' } : {}));
@@ -396,6 +413,8 @@ function openPicker(key) {
   $('#picker-title').textContent = dayName(key);
   $('#picker-save').textContent = `Save to ${dayName(key)}`;
   pickerChecked = new Set(plan.foodIds);
+  pickerOneOffs = plan.oneOffs.map((name) => ({ name, checked: true }));
+  $('#picker-save-food').checked = false; // one-off by default
   pickerFilter = null;
   pickerTagOrder = byUse(allTags());
   renderPickerFoods();
@@ -422,14 +441,34 @@ async function addFood(name, tags = []) {
 
 async function pickerAddFood() {
   const input = $('#picker-new-food');
+  const name = input.value.trim().replace(/\s+/g, ' ').slice(0, 80);
+  if (!name) return;
+  const existing = [...foods.values()].find((f) => sameName(f.name, name));
+  if (existing) {
+    // Already on the Food list: just check it for this day
+    pickerChecked.add(existing.id);
+    input.value = '';
+    renderPickerFoods();
+    toast(`Checked ${existing.name}`);
+    return;
+  }
+  if (!$('#picker-save-food').checked) {
+    // One-off: on this day only, not added to the Food list
+    const found = pickerOneOffs.find((o) => sameName(o.name, name));
+    if (found) found.checked = true;
+    else pickerOneOffs.push({ name, checked: true });
+    input.value = '';
+    renderPickerFoods();
+    toast(`Added ${name} to ${dayName(pickerDate)} only`);
+    return;
+  }
   // A food added while a tag is selected gets that tag
-  const food = await addFood(input.value, pickerFilter ? [pickerFilter] : []);
-  if (!food) return;
+  const food = await addFood(name, pickerFilter ? [pickerFilter] : []);
   pickerChecked.add(food.id);
   input.value = '';
   renderPickerFoods();
   renderFood();
-  toast(`Added ${food.name}`);
+  toast(`Added ${food.name} to your Food list`);
 }
 
 async function savePicker() {
@@ -438,7 +477,8 @@ async function savePicker() {
   const chosen = new Set(checkedPickerIds());
   const kept = plan.foodIds.filter((id) => chosen.has(id));
   const added = [...chosen].filter((id) => !kept.includes(id));
-  await savePlan({ date: pickerDate, foodIds: [...kept, ...added], note: $('#picker-note').value });
+  const oneOffs = pickerOneOffs.filter((o) => o.checked).map((o) => o.name);
+  await savePlan({ date: pickerDate, foodIds: [...kept, ...added], oneOffs, note: $('#picker-note').value });
   renderAll();
   toast(`Saved to ${dayName(pickerDate)}`);
 }
@@ -467,10 +507,11 @@ async function moveDay(from, to) {
   const merged = {
     date: to,
     foodIds: [...new Set([...dst.foodIds, ...src.foodIds])],
+    oneOffs: mergeNames(dst.oneOffs, src.oneOffs),
     note: [dst.note, src.note].filter((n) => n.trim()).join(', '),
   };
   await savePlan(merged);
-  await savePlan({ date: from, foodIds: [], note: '' });
+  await savePlan({ date: from, foodIds: [], oneOffs: [], note: '' });
   $('#mover').close();
   renderAll();
   toast(`Moved to ${dayName(to)}`);
@@ -727,6 +768,7 @@ async function importData(file) {
     .map((p) => ({
       date: p.date,
       foodIds: Array.isArray(p.foodIds) ? p.foodIds.filter((id) => ids.has(id)) : [],
+      oneOffs: Array.isArray(p.oneOffs) ? mergeNames(p.oneOffs.filter((n) => typeof n === 'string' && n.trim()).map((n) => n.trim().slice(0, 80))) : [],
       note: typeof p.note === 'string' ? p.note.slice(0, 400) : '',
     }))
     .filter((p) => !isEmpty(p));
